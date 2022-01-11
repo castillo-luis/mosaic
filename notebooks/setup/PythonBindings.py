@@ -1,12 +1,13 @@
 # Databricks notebook source
-MosaicContextClass = getattr(sc._jvm.com.databricks.mosaic.functions, "MosaicContext")
+MosaicContextCompanionClass = getattr(sc._jvm.com.databricks.mosaic.functions, "MosaicContext$")
+MosaicContextCompanion = getattr(MosaicContextCompanionClass, "MODULE$")
 MosaicPatchClass = getattr(sc._jvm.com.databricks.mosaic.patch, "MosaicPatch")
 mosaicPackageRef = getattr(sc._jvm.com.databricks.mosaic, "package$")
 mosaicPackageObject = getattr(mosaicPackageRef, "MODULE$")
 H3 = getattr(mosaicPackageObject, "H3")
 OGC = getattr(mosaicPackageObject, "OGC")
 
-mosaicContext = MosaicContextClass.apply(H3(), OGC())
+mosaicContext = MosaicContextCompanion.build(H3(), OGC())
 mosaicPatch = MosaicPatchClass.apply(H3(), OGC())
 
 # COMMAND ----------
