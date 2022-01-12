@@ -279,7 +279,7 @@ class MosaicKepler(Magics):
     feature_type = inputs[2]
     limitCtn = 1000
     if len(inputs) == 4:
-      limitCtn = inputs[3]
+      limitCtn = int(inputs[3])
     
     data = spark.read.table(table_name)
     feature_col_dt = [dt for dt in data.dtypes if dt[0] == feature_name][0]

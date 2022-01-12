@@ -153,25 +153,6 @@ kepler_df.createOrReplaceTempView("kepler_df")
 
 // COMMAND ----------
 
-import com.databricks.mosaic.core.geometry.MosaicGeometryOGC
-import com.databricks.mosaic.core.geometry.multilinestring.MosaicMultiLineStringOGC
-val ss = spark
-import ss.implicits._
-
-displayMosaic(
-  polygons1.select("wkb_polygon").as[Array[Byte]].map(
-    wkb => {
-      val geom = MosaicGeometryOGC.fromWKB(wkb)
-      val multiLineString = geom.boundary.asInstanceOf[MosaicMultiLineStringOGC]
-      val coords = multiLineString.toInternal
-      val nVertices = coords.boundaries.map(_.size).sum + coords.holes.map(_.map(_.size).sum).sum
-      (multiLineString.toWKT, multiLineString.getGeometryType, nVertices)
-    }
-  ).toDF
-)
-
-// COMMAND ----------
-
 displayMosaic(
     polygons1.withColumn("numPoints", convert_to(col("wkb_polygon")))
 )
