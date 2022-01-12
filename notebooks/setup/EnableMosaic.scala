@@ -1,4 +1,9 @@
 // Databricks notebook source
+// MAGIC %python
+// MAGIC %pip install keplergl h3
+
+// COMMAND ----------
+
 import com.databricks.mosaic.functions.MosaicContext
 import com.databricks.mosaic.OGC
 import com.databricks.mosaic.H3
@@ -33,10 +38,12 @@ import com.databricks.mosaic.sql.MosaicFrame
 
 def displayMosaic(df: DataFrame) = {
   val mosaicFrame = MosaicFrame(df)  
+  //add mosaic logo as a header
   display(mosaicFrame.prettified)
 }
 
 def displayMosaic(mf: MosaicFrame) = {
+  displayHTML("<img src='https://raw.githubusercontent.com/databricks/mosaic/main/src/main/resources/mosaic_logo.png?token=GHSAT0AAAAAABORRJ7JOINVYPW373XNVTDAYPGRZJA' height='20px'>")
   display(mf.prettified)
 }
 
@@ -51,9 +58,19 @@ def displayMosaic(mf: MosaicFrame) = {
 // MAGIC sqlCtx = SQLContext(spark.sparkContext)
 // MAGIC 
 // MAGIC def displayMosaic(df):
+// MAGIC   #add mosaic logo as a header
+// MAGIC   displayHTML("<img src='https://raw.githubusercontent.com/databricks/mosaic/main/src/main/resources/mosaic_logo.png?token=GHSAT0AAAAAABORRJ7JOINVYPW373XNVTDAYPGRZJA' height='20px'>")
 // MAGIC   display(
 // MAGIC     DataFrame(
 // MAGIC       PrettifierObject.prettified(df._jdf),
 // MAGIC       sqlCtx
 // MAGIC     )
 // MAGIC   )
+
+// COMMAND ----------
+
+// MAGIC %run "./MosaicKepler"
+
+// COMMAND ----------
+
+

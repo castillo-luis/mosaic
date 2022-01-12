@@ -73,7 +73,7 @@ package com.databricks.mosaic.patch
 import com.databricks.mosaic.core.index.IndexSystem
 import com.databricks.mosaic.core.geometry.api.GeometryAPI
 
-case class MosaicPatch(indexSystem: IndexSystem, geometryAPI: GeometryAPI) {
+case class MosaicPatch(indexSystem: IndexSystem, geometryAPI: GeometryAPI) extends Serializable {
   import org.apache.spark.sql.adapters.{Column => ColumnAdapter}
   import com.databricks.mosaic.patch._
   import org.apache.spark.sql.{Column, SparkSession}
@@ -91,7 +91,7 @@ case class MosaicPatch(indexSystem: IndexSystem, geometryAPI: GeometryAPI) {
     )
   } 
 
-  object functions {
+  object functions extends Serializable {
     def flatten_polygons(geom: Column): Column = ColumnAdapter(FlattenPolygonsPatch(geom.expr, geometryAPI.name))
     def mosaic_explode(geom: Column, resolution: Column): Column = ColumnAdapter(MosaicExplodePatch(struct(geom, resolution).expr, indexSystem.name, geometryAPI.name))
     def mosaic_explode(geom: Column, resolution: Int): Column = ColumnAdapter(MosaicExplodePatch(struct(geom, lit(resolution)).expr, indexSystem.name, geometryAPI.name))
