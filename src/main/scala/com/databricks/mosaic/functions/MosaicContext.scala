@@ -2,7 +2,7 @@ package com.databricks.mosaic.functions
 
 import org.apache.spark.sql.{Column, SparkSession}
 import org.apache.spark.sql.catalyst.FunctionIdentifier
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{Expression, ExpressionInfo}
 import org.apache.spark.sql.functions.{lit, struct}
 
 import com.databricks.mosaic.core.geometry.api.GeometryAPI
@@ -12,6 +12,9 @@ import com.databricks.mosaic.expressions.format._
 import com.databricks.mosaic.expressions.geometry._
 import com.databricks.mosaic.expressions.helper.TrySql
 import com.databricks.mosaic.expressions.index._
+import com.databricks.mosaic.functions.MosaicSQLExtensions.FunctionDescription
+
+
 
 class MosaicContext(indexSystem: IndexSystem, geometryAPI: GeometryAPI) extends Serializable {
 
@@ -33,189 +36,302 @@ class MosaicContext(indexSystem: IndexSystem, geometryAPI: GeometryAPI) extends 
         database: Option[String] = None
     ): Unit = {
         val registry = spark.sessionState.functionRegistry
+        val functionDescriptionMap = getFunctionDescriptions(database)
+        functionDescriptionMap.foreach { case (_, (identifier, _, builder)) => registry.registerFunction(identifier, builder) }
+    }
 
-        /** IndexSystem and GeometryAPI Agnostic methods */
-        registry.registerFunction(FunctionIdentifier("as_hex", database), (exprs: Seq[Expression]) => AsHex(exprs(0)))
-        registry.registerFunction(FunctionIdentifier("as_json", database), (exprs: Seq[Expression]) => AsJSON(exprs(0)))
-        registry.registerFunction(FunctionIdentifier("st_point", database), (exprs: Seq[Expression]) => ST_Point(exprs(0), exprs(1)))
-        registry.registerFunction(FunctionIdentifier("st_makeline", database), (exprs: Seq[Expression]) => ST_MakeLine(exprs(0)))
-        registry.registerFunction(
-          FunctionIdentifier("st_polygon", database),
-          (exprs: Seq[Expression]) =>
-              exprs match {
-                  case e if e.length == 1 => ST_MakePolygon(e.head)
-                  case e if e.length == 2 => ST_MakePolygonWithHoles(e.head, e.last)
-              }
-        )
-        registry.registerFunction(
-          FunctionIdentifier("index_geometry", database),
-          (exprs: Seq[Expression]) => IndexGeometry(exprs(0), indexSystem.name, geometryAPI.name)
-        )
+    // noinspection ZeroIndexToHead
+    def getFunctionDescriptions(database: Option[String] = None): Map[String, FunctionDescription] = {
+        def getExpressionInfo[T](expressionClass: Class[T], db: Option[String], expressionName: String) = db
+            .map(dbName => new ExpressionInfo(expressionClass.getCanonicalName, dbName, expressionName))
+            .getOrElse(new ExpressionInfo(expressionClass.getCanonicalName, expressionName))
 
-        /** GeometryAPI Specific */
-        registry.registerFunction(
-          FunctionIdentifier("flatten_polygons", database),
-          (exprs: Seq[Expression]) => FlattenPolygons(exprs(0), geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_xmax", database),
-          (exprs: Seq[Expression]) => ST_MinMaxXYZ(exprs(0), geometryAPI.name, "X", "MAX")
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_xmin", database),
-          (exprs: Seq[Expression]) => ST_MinMaxXYZ(exprs(0), geometryAPI.name, "X", "MIN")
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_ymax", database),
-          (exprs: Seq[Expression]) => ST_MinMaxXYZ(exprs(0), geometryAPI.name, "Y", "MAX")
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_ymin", database),
-          (exprs: Seq[Expression]) => ST_MinMaxXYZ(exprs(0), geometryAPI.name, "Y", "MIN")
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_zmax", database),
-          (exprs: Seq[Expression]) => ST_MinMaxXYZ(exprs(0), geometryAPI.name, "Z", "MAX")
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_zmin", database),
-          (exprs: Seq[Expression]) => ST_MinMaxXYZ(exprs(0), geometryAPI.name, "Z", "MIN")
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_isvalid", database),
-          (exprs: Seq[Expression]) => ST_IsValid(exprs(0), geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_geometrytype", database),
-          (exprs: Seq[Expression]) => ST_GeometryType(exprs(0), geometryAPI.name)
-        )
-        registry.registerFunction(FunctionIdentifier("st_area", database), (exprs: Seq[Expression]) => ST_Area(exprs(0), geometryAPI.name))
-        registry.registerFunction(
-          FunctionIdentifier("st_centroid2D", database),
-          (exprs: Seq[Expression]) => ST_Centroid(exprs(0), geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_centroid3D", database),
-          (exprs: Seq[Expression]) => ST_Centroid(exprs(0), geometryAPI.name, 3)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_geomfromwkt", database),
-          (exprs: Seq[Expression]) => ConvertTo(exprs(0), "coords", geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_geomfromwkb", database),
-          (exprs: Seq[Expression]) => ConvertTo(exprs(0), "coords", geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_geomfromgeojson", database),
-          (exprs: Seq[Expression]) => ConvertTo(AsJSON(exprs(0)), "coords", geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("convert_to_hex", database),
-          (exprs: Seq[Expression]) => ConvertTo(exprs(0), "hex", geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("convert_to_wkt", database),
-          (exprs: Seq[Expression]) => ConvertTo(exprs(0), "wkt", geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("convert_to_wkb", database),
-          (exprs: Seq[Expression]) => ConvertTo(exprs(0), "wkb", geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("convert_to_coords", database),
-          (exprs: Seq[Expression]) => ConvertTo(exprs(0), "coords", geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("convert_to_geojson", database),
-          (exprs: Seq[Expression]) => ConvertTo(exprs(0), "geojson", geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_aswkt", database),
-          (exprs: Seq[Expression]) => ConvertTo(exprs(0), "wkt", geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_astext", database),
-          (exprs: Seq[Expression]) => ConvertTo(exprs(0), "wkt", geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_aswkb", database),
-          (exprs: Seq[Expression]) => ConvertTo(exprs(0), "wkb", geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_asbinary", database),
-          (exprs: Seq[Expression]) => ConvertTo(exprs(0), "wkb", geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_asgeojson", database),
-          (exprs: Seq[Expression]) => ConvertTo(exprs(0), "geojson", geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_length", database),
-          (exprs: Seq[Expression]) => ST_Length(exprs(0), geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_perimeter", database),
-          (exprs: Seq[Expression]) => ST_Length(exprs(0), geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_distance", database),
-          (exprs: Seq[Expression]) => ST_Distance(exprs(0), exprs(1), geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_contains", database),
-          (exprs: Seq[Expression]) => ST_Contains(exprs(0), exprs(1), geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_translate", database),
-          (exprs: Seq[Expression]) => ST_Translate(exprs(0), exprs(1), exprs(2), geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_scale", database),
-          (exprs: Seq[Expression]) => ST_Scale(exprs(0), exprs(1), exprs(2), geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_rotate", database),
-          (exprs: Seq[Expression]) => ST_Rotate(exprs(0), exprs(1), geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("st_convexhull", database),
-          (exprs: Seq[Expression]) => ST_ConvexHull(exprs(0), geometryAPI.name)
+        def getFunctionDescription[T](
+            expressionClass: Class[T],
+            db: Option[String],
+            expressionName: String,
+            builder: Seq[Expression] => Expression
+        ): FunctionDescription = (
+          FunctionIdentifier(expressionName, db),
+          getExpressionInfo(expressionClass, db, expressionName),
+          builder
         )
 
-        /** IndexSystem Specific */
-
-        /** IndexSystem and GeometryAPI Specific methods */
-        registry.registerFunction(
-          FunctionIdentifier("mosaic_explode", database),
-          (exprs: Seq[Expression]) =>
-              MosaicExplode(struct(ColumnAdapter(exprs(0)), ColumnAdapter(exprs(1))).expr, indexSystem.name, geometryAPI.name)
+        Map(
+          "as_hex" -> getFunctionDescription(classOf[AsHex], database, "as_hex", (exprs: Seq[Expression]) => AsHex(exprs(0))),
+          "as_json" -> getFunctionDescription(classOf[AsJSON], database, "as_json", (exprs: Seq[Expression]) => AsJSON(exprs(0))),
+          "st_point" -> getFunctionDescription(
+            classOf[ST_Point],
+            database,
+            "st_point",
+            (exprs: Seq[Expression]) => ST_Point(exprs(0), exprs(1))
+          ),
+          "st_makeline" -> getFunctionDescription(
+            classOf[ST_MakeLine],
+            database,
+            "st_makeline",
+            (exprs: Seq[Expression]) => ST_MakeLine(exprs(0))
+          ),
+          "st_polygon" -> getFunctionDescription(
+            classOf[ST_MakePolygon],
+            database,
+            "st_polygon",
+            (exprs: Seq[Expression]) => ST_MakePolygon(exprs(0))
+          ),
+          "st_polygon" -> getFunctionDescription(
+            classOf[ST_MakePolygonWithHoles],
+            database,
+            "st_polygon",
+            (exprs: Seq[Expression]) => ST_MakePolygonWithHoles(exprs(0), exprs(1))
+          ),
+          "index_geometry" -> getFunctionDescription(
+            classOf[IndexGeometry],
+            database,
+            "index_geometry",
+            (exprs: Seq[Expression]) => IndexGeometry(exprs(0), indexSystem.name, geometryAPI.name)
+          ),
+          "flatten_polygons" -> getFunctionDescription(
+            classOf[FlattenPolygons],
+            database,
+            "flatten_polygons",
+            (exprs: Seq[Expression]) => FlattenPolygons(exprs(0), geometryAPI.name)
+          ),
+          "st_xmax" -> getFunctionDescription(
+            classOf[ST_MinMaxXYZ],
+            database,
+            "st_xmax",
+            (exprs: Seq[Expression]) => ST_MinMaxXYZ(exprs(0), geometryAPI.name, "X", "MAX")
+          ),
+          "st_xmin" -> getFunctionDescription(
+            classOf[ST_MinMaxXYZ],
+            database,
+            "st_xmin",
+            (exprs: Seq[Expression]) => ST_MinMaxXYZ(exprs(0), geometryAPI.name, "X", "MIN")
+          ),
+          "st_ymax" -> getFunctionDescription(
+            classOf[ST_MinMaxXYZ],
+            database,
+            "st_ymax",
+            (exprs: Seq[Expression]) => ST_MinMaxXYZ(exprs(0), geometryAPI.name, "Y", "MAX")
+          ),
+          "st_ymin" -> getFunctionDescription(
+            classOf[ST_MinMaxXYZ],
+            database,
+            "st_ymin",
+            (exprs: Seq[Expression]) => ST_MinMaxXYZ(exprs(0), geometryAPI.name, "Y", "MIN")
+          ),
+          "st_zmax" -> getFunctionDescription(
+            classOf[ST_MinMaxXYZ],
+            database,
+            "st_zmax",
+            (exprs: Seq[Expression]) => ST_MinMaxXYZ(exprs(0), geometryAPI.name, "Z", "MAX")
+          ),
+          "st_zmin" -> getFunctionDescription(
+            classOf[ST_MinMaxXYZ],
+            database,
+            "st_zmin",
+            (exprs: Seq[Expression]) => ST_MinMaxXYZ(exprs(0), geometryAPI.name, "Z", "MIN")
+          ),
+          "st_isvalid" -> getFunctionDescription(
+            classOf[ST_IsValid],
+            database,
+            "st_isvalid",
+            (exprs: Seq[Expression]) => ST_IsValid(exprs(0), geometryAPI.name)
+          ),
+          "st_geometrytype" -> getFunctionDescription(
+            classOf[ST_GeometryType],
+            database,
+            "st_geometrytype",
+            (exprs: Seq[Expression]) => ST_GeometryType(exprs(0), geometryAPI.name)
+          ),
+          "st_area" -> getFunctionDescription(
+            classOf[ST_Area],
+            database,
+            "st_area",
+            (exprs: Seq[Expression]) => ST_Area(exprs(0), geometryAPI.name)
+          ),
+          "st_centroid2D" -> getFunctionDescription(
+            classOf[ST_Centroid],
+            database,
+            "st_centroid2D",
+            (exprs: Seq[Expression]) => ST_Centroid(exprs(0), geometryAPI.name)
+          ),
+          "st_centroid3D" -> getFunctionDescription(
+            classOf[ST_Centroid],
+            database,
+            "st_centroid3D",
+            (exprs: Seq[Expression]) => ST_Centroid(exprs(0), geometryAPI.name, 3)
+          ),
+          "st_geomfromwkt" -> getFunctionDescription(
+            classOf[ConvertTo],
+            database,
+            "st_geomfromwkt",
+            (exprs: Seq[Expression]) => ConvertTo(exprs(0), "coords", geometryAPI.name)
+          ),
+          "st_geomfromwkb" -> getFunctionDescription(
+            classOf[ConvertTo],
+            database,
+            "st_geomfromwkb",
+            (exprs: Seq[Expression]) => ConvertTo(exprs(0), "coords", geometryAPI.name)
+          ),
+          "st_geomfromgeojson" -> getFunctionDescription(
+            classOf[ConvertTo],
+            database,
+            "st_geomfromgeojson",
+            (exprs: Seq[Expression]) => ConvertTo(AsJSON(exprs(0)), "coords", geometryAPI.name)
+          ),
+          "convert_to_hex" -> getFunctionDescription(
+            classOf[ConvertTo],
+            database,
+            "convert_to_hex",
+            (exprs: Seq[Expression]) => ConvertTo(exprs(0), "hex", geometryAPI.name)
+          ),
+          "convert_to_wkt" -> getFunctionDescription(
+            classOf[ConvertTo],
+            database,
+            "convert_to_wkt",
+            (exprs: Seq[Expression]) => ConvertTo(exprs(0), "wkt", geometryAPI.name)
+          ),
+          "convert_to_wkb" -> getFunctionDescription(
+            classOf[ConvertTo],
+            database,
+            "convert_to_wkb",
+            (exprs: Seq[Expression]) => ConvertTo(exprs(0), "wkb", geometryAPI.name)
+          ),
+          "convert_to_coords" -> getFunctionDescription(
+            classOf[ConvertTo],
+            database,
+            "convert_to_coords",
+            (exprs: Seq[Expression]) => ConvertTo(exprs(0), "coords", geometryAPI.name)
+          ),
+          "convert_to_geojson" -> getFunctionDescription(
+            classOf[ConvertTo],
+            database,
+            "convert_to_geojson",
+            (exprs: Seq[Expression]) => ConvertTo(exprs(0), "geojson", geometryAPI.name)
+          ),
+          "st_aswkt" -> getFunctionDescription(
+            classOf[ConvertTo],
+            database,
+            "st_aswkt",
+            (exprs: Seq[Expression]) => ConvertTo(exprs(0), "wkt", geometryAPI.name)
+          ),
+          "st_astext" -> getFunctionDescription(
+            classOf[ConvertTo],
+            database,
+            "st_astext",
+            (exprs: Seq[Expression]) => ConvertTo(exprs(0), "wkt", geometryAPI.name)
+          ),
+          "st_aswkb" -> getFunctionDescription(
+            classOf[ConvertTo],
+            database,
+            "st_aswkb",
+            (exprs: Seq[Expression]) => ConvertTo(exprs(0), "wkb", geometryAPI.name)
+          ),
+          "st_asbinary" -> getFunctionDescription(
+            classOf[ConvertTo],
+            database,
+            "st_asbinary",
+            (exprs: Seq[Expression]) => ConvertTo(exprs(0), "wkb", geometryAPI.name)
+          ),
+          "st_ashex" -> getFunctionDescription(
+            classOf[ConvertTo],
+            database,
+            "st_ashex",
+            (exprs: Seq[Expression]) => ConvertTo(exprs(0), "hex", geometryAPI.name)
+          ),
+          "st_asgeojson" -> getFunctionDescription(
+            classOf[ConvertTo],
+            database,
+            "st_asgeojson",
+            (exprs: Seq[Expression]) => ConvertTo(exprs(0), "geojson", geometryAPI.name)
+          ),
+          "st_length" -> getFunctionDescription(
+            classOf[ST_Length],
+            database,
+            "st_length",
+            (exprs: Seq[Expression]) => ST_Length(exprs(0), geometryAPI.name)
+          ),
+          "st_perimeter" -> getFunctionDescription(
+            classOf[ST_Length],
+            database,
+            "st_perimeter",
+            (exprs: Seq[Expression]) => ST_Length(exprs(0), geometryAPI.name)
+          ),
+          "st_distance" -> getFunctionDescription(
+            classOf[ST_Distance],
+            database,
+            "st_distance",
+            (exprs: Seq[Expression]) => ST_Distance(exprs(0), exprs(1), geometryAPI.name)
+          ),
+          "st_contains" -> getFunctionDescription(
+            classOf[ST_Contains],
+            database,
+            "st_contains",
+            (exprs: Seq[Expression]) => ST_Contains(exprs(0), exprs(1), geometryAPI.name)
+          ),
+          "st_translate" -> getFunctionDescription(
+            classOf[ST_Translate],
+            database,
+            "st_translate",
+            (exprs: Seq[Expression]) => ST_Translate(exprs(0), exprs(1), exprs(2), geometryAPI.name)
+          ),
+          "st_scale" -> getFunctionDescription(
+            classOf[ST_Scale],
+            database,
+            "st_scale",
+            (exprs: Seq[Expression]) => ST_Scale(exprs(0), exprs(1), exprs(2), geometryAPI.name)
+          ),
+          "st_rotate" -> getFunctionDescription(
+            classOf[ST_Rotate],
+            database,
+            "st_rotate",
+            (exprs: Seq[Expression]) => ST_Rotate(exprs(0), exprs(1), geometryAPI.name)
+          ),
+          "st_convexhull" -> getFunctionDescription(
+            classOf[ST_ConvexHull],
+            database,
+            "st_convexhull",
+            (exprs: Seq[Expression]) => ST_ConvexHull(exprs(0), geometryAPI.name)
+          ),
+          "mosaic_explode" -> getFunctionDescription(
+            classOf[MosaicExplode],
+            database,
+            "mosaic_explode",
+            (exprs: Seq[Expression]) =>
+                MosaicExplode(struct(ColumnAdapter(exprs(0)), ColumnAdapter(exprs(1))).expr, indexSystem.name, geometryAPI.name)
+          ),
+          "mosaicfill" -> getFunctionDescription(
+            classOf[MosaicFill],
+            database,
+            "mosaicfill",
+            (exprs: Seq[Expression]) => MosaicFill(exprs(0), exprs(1), indexSystem.name, geometryAPI.name)
+          ),
+          "point_index" -> getFunctionDescription(
+            classOf[PointIndex],
+            database,
+            "point_index",
+            (exprs: Seq[Expression]) => PointIndex(exprs(0), exprs(1), exprs(2), indexSystem.name)
+          ),
+          "polyfill" -> getFunctionDescription(
+            classOf[Polyfill],
+            database,
+            "polyfill",
+            (exprs: Seq[Expression]) => Polyfill(exprs(0), exprs(1), indexSystem.name, geometryAPI.name)
+          ),
+          "st_dump" -> getFunctionDescription(
+            classOf[Polyfill],
+            database,
+            "st_dump",
+            (exprs: Seq[Expression]) => FlattenPolygons(exprs(0), geometryAPI.name)
+          ),
+          "try_sql" -> getFunctionDescription(
+            classOf[Polyfill],
+            database,
+            "try_sql",
+            (exprs: Seq[Expression]) => TrySql(exprs(0))
+          )
         )
-        registry.registerFunction(
-          FunctionIdentifier("mosaicfill", database),
-          (exprs: Seq[Expression]) => MosaicFill(exprs(0), exprs(1), indexSystem.name, geometryAPI.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("point_index", database),
-          (exprs: Seq[Expression]) => PointIndex(exprs(0), exprs(1), exprs(2), indexSystem.name)
-        )
-        registry.registerFunction(
-          FunctionIdentifier("polyfill", database),
-          (exprs: Seq[Expression]) => Polyfill(exprs(0), exprs(1), indexSystem.name, geometryAPI.name)
-        )
-
-        // DataType keywords are needed at checkInput execution time.
-        // They cant be passed as Expressions to ConvertTo Expression.
-        // Instead they are passed as String instances and for SQL
-        // parser purposes separate method names are defined.
-
-        registry.registerFunction(
-          FunctionIdentifier("st_dump", database),
-          (exprs: Seq[Expression]) => FlattenPolygons(exprs(0), geometryAPI.name)
-        )
-
-        // Not specific to Mosaic
-        registry.registerFunction(FunctionIdentifier("try_sql", database), (exprs: Seq[Expression]) => TrySql(exprs(0)))
     }
 
     def getGeometryAPI: GeometryAPI = this.geometryAPI
