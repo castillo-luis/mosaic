@@ -12,26 +12,27 @@ import mosaicContext.functions._
 
 // COMMAND ----------
 
-// MAGIC %run "./GeneratorsHotfix"
+//%run "./GeneratorsHotfix"
 
 // COMMAND ----------
 
-import com.databricks.mosaic.patch.MosaicPatch
-import com.databricks.mosaic.OGC
-import com.databricks.mosaic.H3
-val mosaicPatch = MosaicPatch(H3, OGC)
-import mosaicPatch.functions._
+// import com.databricks.mosaic.patch.MosaicPatch
+// import com.databricks.mosaic.OGC
+// import com.databricks.mosaic.H3
+// val mosaicPatch = MosaicPatch(H3, OGC)
+// import mosaicPatch.functions._
 
 // COMMAND ----------
 
 mosaicContext.register(spark)
-mosaicPatch.register(spark)
+// mosaicPatch.register(spark)
 
 // COMMAND ----------
 
 // MAGIC %run "./PythonBindings"
 
 // COMMAND ----------
+
 
 import org.apache.spark.sql._
 import com.databricks.mosaic.sql.MosaicFrame

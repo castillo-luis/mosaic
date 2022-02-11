@@ -8,7 +8,7 @@ H3 = getattr(mosaicPackageObject, "H3")
 OGC = getattr(mosaicPackageObject, "OGC")
 
 mosaicContext = MosaicContextCompanion.build(H3(), OGC())
-mosaicPatch = MosaicPatchClass.apply(H3(), OGC())
+#mosaicPatch = MosaicPatchClass.apply(H3(), OGC())
 
 # COMMAND ----------
 
@@ -146,12 +146,17 @@ def polyfill(inGeom: "ColumnOrName", resolution: "ColumnOrName"):
 # original bindings             #
 #################################
 def flatten_polygons(inGeom: "ColumnOrName"):
-  return _mosaic_invoke_function("flatten_polygons", mosaicPatch, pyspark_to_java_column(inGeom))
+  #return _mosaic_invoke_function("flatten_polygons", mosaicPatch, pyspark_to_java_column(inGeom))
+  return _mosaic_invoke_function("flatten_polygons", mosaicContext, pyspark_to_java_column(inGeom))
 
 def mosaic_explode(inGeom: "ColumnOrName", resolution: "ColumnOrName"):
   return _mosaic_invoke_function(
     "mosaic_explode", 
-    mosaicPatch, 
+    mosaicContext, #mosaicPatch, 
     pyspark_to_java_column(inGeom), 
     pyspark_to_java_column(resolution)
   )
+
+# COMMAND ----------
+
+

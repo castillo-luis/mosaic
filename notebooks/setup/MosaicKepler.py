@@ -304,7 +304,7 @@ class MosaicKepler(Magics):
     m1 = KeplerGl(config=mosaic_kepler_config)
     m1.add_data(data=pandasData, name = table_name)
     
-    logo_html = "<img src='https://raw.githubusercontent.com/databricks/mosaic/main/src/main/resources/mosaic_logo.png?token=GHSAT0AAAAAABORRJ7JOINVYPW373XNVTDAYPGRZJA' height='20px'>"
+    logo_html = "<img src='/files/milos_colic/mosaic_logo.png' height='20px'>"
 
     displayHTML(logo_html)
     self.displayKepler(m1, 800, 1200)

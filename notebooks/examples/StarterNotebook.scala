@@ -1,5 +1,5 @@
 // Databricks notebook source
-// MAGIC %md <img src="https://raw.githubusercontent.com/databricks/mosaic/main/src/main/resources/mosaic_logo.png?token=GHSAT0AAAAAABORRJ7JOINVYPW373XNVTDAYPGRZJA">
+// MAGIC %md <img src="/files/milos_colic/mosaic_logo.png">
 
 // COMMAND ----------
 
@@ -45,7 +45,33 @@ display(polygons1)
 
 // COMMAND ----------
 
+import com.databricks.backend.daemon.driver.EnhancedRDDFunctions
+EnhancedRDDFunctions.display(polygons1)
+
+// COMMAND ----------
+
 displayMosaic(polygons1)
+
+// COMMAND ----------
+
+polygons1
+  .orderBy(length(col("wkb_polygon")).desc)
+  .withColumn("chip", explode(col("chips")))
+  .select(
+    st_astext(col("chip.chip")).alias("wkt_chip"),
+    col("chip.index").alias("h3_id"),
+    col("chip.is_border")
+  ).createOrReplaceTempView("polygonds1")
+
+// COMMAND ----------
+
+// MAGIC %md Mosaic also comes with a magic for displaying H3 indices in KeplerGL.
+
+// COMMAND ----------
+
+// MAGIC %python
+// MAGIC %%mosaic_kepler 
+// MAGIC "polygonds1" "h3_id" "h3" 500
 
 // COMMAND ----------
 
@@ -127,7 +153,6 @@ display(metrics)
 
 // MAGIC %md
 // MAGIC Mosaic comes with bindings for Python for all the spark fucntions that are supported in scala and sql. </br>
-// MAGIC Mosaic also comes with a magic for displaying H3 indices in KeplerGL.
 
 // COMMAND ----------
 
@@ -153,12 +178,6 @@ kepler_df.createOrReplaceTempView("kepler_df")
 
 // COMMAND ----------
 
-displayMosaic(
-    polygons1.withColumn("numPoints", convert_to(col("wkb_polygon")))
-)
-
-// COMMAND ----------
-
 // MAGIC %python
 // MAGIC %%mosaic_kepler 
 // MAGIC "kepler_df" "h3_id" "h3"
@@ -173,7 +192,7 @@ displayMosaic(
 
 // COMMAND ----------
 
-import com.databricks.mosaic.core.geometry.MosaicGeometryOGC
+import com.databricks.mosaic.core.geometry.MosaicGeometry
 import com.databricks.mosaic.core.geometry.multilinestring.MosaicMultiLineStringOGC
 val ss = spark
 import ss.implicits._

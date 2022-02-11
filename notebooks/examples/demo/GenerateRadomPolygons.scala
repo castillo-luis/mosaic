@@ -1,5 +1,5 @@
 // Databricks notebook source
-// MAGIC %md <img src="https://raw.githubusercontent.com/databricks/mosaic/main/src/main/resources/mosaic_logo.png?token=GHSAT0AAAAAABORRJ7JOINVYPW373XNVTDAYPGRZJA">
+// MAGIC %md <img src="/files/milos_colic/mosaic_logo.png">
 
 // COMMAND ----------
 

@@ -1,5 +1,5 @@
 // Databricks notebook source
-// MAGIC %md <img src="https://raw.githubusercontent.com/databricks/mosaic/main/src/main/resources/mosaic_logo.png?token=GHSAT0AAAAAABORRJ7JOINVYPW373XNVTDAYPGRZJA">
+// MAGIC %md <img src="/files/milos_colic/mosaic_logo.png">
 
 // COMMAND ----------
 
@@ -110,6 +110,18 @@ pointsData.count()
 // COMMAND ----------
 
 pointsData.write.format("delta").mode("overwrite").save("/Users/milos_colic/mosaic/demo/randomized_points")
+
+// COMMAND ----------
+
+// MAGIC %sql
+// MAGIC CREATE TABLE randomized_points
+// MAGIC using delta
+// MAGIC LOCATION "/Users/milos_colic/mosaic/demo/randomized_points"
+
+// COMMAND ----------
+
+// MAGIC %sql
+// MAGIC OPTIMIZE randomized_points ZORDER BY (x, y, h3_id)
 
 // COMMAND ----------
 
