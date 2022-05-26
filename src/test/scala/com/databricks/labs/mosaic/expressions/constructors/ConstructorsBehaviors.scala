@@ -241,7 +241,7 @@ trait ConstructorsBehaviors { this: AnyFlatSpec =>
             .withColumn("structure", get_cdm_structure($"content"))
             .withColumn("time", get_cdm_content($"content", "time", 1, "int"))
             .withColumn("lat", get_cdm_content($"content", "lat", 1, "float"))
-            .withColumn("lon", get_cdm_content($"content", "lat", 1, "float"))
+            .withColumn("lon", get_cdm_content($"content", "lon", 1, "float"))
             .withColumn("bleaching_alert_area", get_cdm_content($"content", "bleaching_alert_area", 3, "byte"))
 
         dfOut.count shouldBe 10
